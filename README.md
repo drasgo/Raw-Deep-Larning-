@@ -1,2 +1,2 @@
-# Raw-Deep-Larning-
+# Raw-Deep-Learning
 Set of raw implementations of Deep Learning techniques
