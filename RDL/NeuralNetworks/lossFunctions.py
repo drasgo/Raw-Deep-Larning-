@@ -1,10 +1,25 @@
 from enum import Enum
 
-class _LossFunctionImplementation:
+class _MSE:
     @staticmethod
-    def mse(output, target):
+    def forward(output, target):
+        pass
+
+    @staticmethod
+    def derivative(output, target):
+        pass
+
+
+class _CrossEntropy:
+    @staticmethod
+    def forward(output, target):
+        pass
+
+    @staticmethod
+    def derivative(output, target):
         pass
 
 
 class LossFunctions(Enum):
-    MSE = _LossFunctionImplementation.mse
+    MSE = _MSE
+    CROSS_ENTROPY = _CrossEntropy

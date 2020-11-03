@@ -1,21 +1,31 @@
 from enum import Enum
-import numpy
 from math import exp
+import numpy
 
 
-class _Linear:
+class _Ops:
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
+        pass
+
+    @staticmethod
+    def derivative(input_data: numpy.Array):
+        pass
+
+
+class _Linear(_Ops):
+    @staticmethod
+    def forward(input_data: numpy.Array):
         return input_data
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         return numpy.ones(shape=input_data.shape)
 
 
-class _Relu:
+class _Relu(_Ops):
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
         computed = list()
         for value in input_data:
             computed.append(max(0, value))
@@ -24,7 +34,7 @@ class _Relu:
         return computed
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         computed = list()
         for value in input_data:
             if value > 0:
@@ -36,9 +46,9 @@ class _Relu:
         return computed
 
 
-class _Sigmoid:
+class _Sigmoid(_Ops):
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
         computed = list()
         for value in input_data:
             computed.append(1/(1+exp(-value)))
@@ -47,13 +57,13 @@ class _Sigmoid:
         return computed
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         pass
 
 
-class _Tanh:
+class _Tanh(_Ops):
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
         computed = list()
         for value in input_data:
             computed.append(2 * (1 / (1 + exp(-value))) - 1)
@@ -62,27 +72,27 @@ class _Tanh:
         return computed
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         pass
 
 
-class _Swish:
+class _Swish(_Ops):
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
         pass
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         pass
 
 
-class _Softmax:
+class _Softmax(_Ops):
     @staticmethod
-    def forward(input_data):
+    def forward(input_data: numpy.Array):
         pass
 
     @staticmethod
-    def backward(input_data):
+    def derivative(input_data: numpy.Array):
         pass
 
 

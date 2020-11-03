@@ -9,6 +9,9 @@ class BaseNeuralNetwork:
         self.structure = {}
         self.loss_function = None
         self.loss = None
+        self.input_layers = []
+        self.output_layers = []
+        self.training_decay = 0.1
 
     def add_input_layer(self, layer_name: str, input_nodes: int):
         self.structure[layer_name] = {
@@ -26,10 +29,15 @@ class BaseNeuralNetwork:
             "input_layer": input_layer
         }
 
-    def add_output_layer(self, layer_name: str, input_layer: str, nodes: int):
+    def add_output_layer(self,
+                         layer_name: str,
+                         input_layer: str,
+                         nodes: int,
+                         activation_function: ActivationFunctions=ActivationFunctions.LINEAR):
         self.structure[layer_name] = {
             "name": layer_name,
             "type": "output",
+            "activation": activation_function,
             "nodes": nodes,
             "input_layer": input_layer
         }
@@ -71,9 +79,8 @@ class BaseNeuralNetwork:
                     print("Error: in layer " + layer + " input layer specified is " +
                           self.structure[layer]["input_layer"] + " but no layer with this name exists.")
                     exit()
-                if self.structure[layer]["type"] == "hidden":
-                    activation_function = self.structure[layer]["activation"]
 
+                activation_function = self.structure[layer]["activation"]
                 input_layer = self.structure[layer]["input_layer"]
                 weights = numpy.ones((self.structure[layer]["nodes"], self.structure[input_layer]["nodes"]))
                 biases = numpy.ones((self.structure[layer]["nodes"], 1))
@@ -85,8 +92,28 @@ class BaseNeuralNetwork:
                 "weight": weights,
                 "bias": biases,
                 "data": None,
+                "sensitivity": None,
                 "activation": activation_function,
                 "input_layer": input_layer,
                 "output_layer": output_layer
             }
+            if new_structure[layer]["type"] == "input":
+                self.input_layers.append(new_structure[layer])
+            if new_structure[layer]["type"] == "output":
+                self.output_layers.append(new_structure[layer])
+
+        if not(0 < len(self.input_layers) < 2):
+            print("Error: supported only one input layer.")
+            exit()
+
+        if not(0 < len(self.output_layers) < 2):
+            print("Error: supported only one output layer.")
+            exit()
+
         self.structure = new_structure
+
+    def forward(self, input_data: numpy.Array):
+        pass
+
+    def backward(self, output_data: numpy.Array, target_data: numpy.Array):
+        pass
