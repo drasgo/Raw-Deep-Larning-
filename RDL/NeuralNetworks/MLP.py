@@ -19,10 +19,7 @@ class MLP(BaseNeuralNetwork):
             prev_layer["data"] = input_data
 
             while True:
-                try:
-                    curr_layer = self.structure[prev_layer["output_layer"]]
-                except:
-                    pprint.pprint(curr_layer)
+                curr_layer = self.structure[prev_layer["output_layer"]]
                 output_data = numpy.dot(curr_layer["weight"], prev_layer["data"]) + curr_layer["bias"]
                 # output_data = curr_layer["activation"].forward(output_data)
                 curr_layer["data"] = output_data
