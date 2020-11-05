@@ -8,8 +8,7 @@ import pprint
 
 if __name__ == "__main__":
     # grab values from terminal
-
-
+    # optional: load model
     # get data
 
     # create new mlp

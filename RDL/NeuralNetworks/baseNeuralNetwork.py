@@ -11,7 +11,9 @@ class BaseNeuralNetwork:
         self.loss = None
         self.input_layers = []
         self.output_layers = []
-        self.training_decay = 0.1
+        self.learning_rate = 0.1
+        self.normalization = True
+        self.standardization = True
 
     def add_input_layer(self, layer_name: str, input_nodes: int):
         self.structure[layer_name] = {
@@ -42,6 +44,12 @@ class BaseNeuralNetwork:
             "input_layer": input_layer
         }
 
+    def add_standardization(self, standardize: bool = True):
+        self.standardization = standardize
+
+    def add_normalization(self, normalize: bool = True):
+        self.normalization = normalize
+
     def add_operation(self, operation):
         # TODO: Not supported yet
         pass
@@ -49,13 +57,46 @@ class BaseNeuralNetwork:
     def add_loss_function(self, loss_function):
         self.loss_function = loss_function
 
-    def commit_structure(self):
+    def add_learning_rate(self, learning_rate: float):
+        self.learning_rate = learning_rate
+
+    def sanity_check(self):
+        """
+        This method performs a sanity control of the structure. Orderly, it checks that:
+        - a loss function is provided
+        - there is only one Input layer
+        - there is only one Output layer
+        - every layer has an input layer (data comes from a past layer), except Input layer
+        - every layer has an ouput layer (data goes to another layer), except Output layer
+
+        """
         if self.loss_function is None:
             print("Error: loss function missing or not recognized.")
             exit()
 
+        if not(0 < len([layer for layer in self.structure if self.structure[layer]["type"] == "input"]) < 2):
+            print("Error: supported only one input layer.")
+            exit()
+
+        if not(0 < len([layer for layer in self.structure if self.structure[layer]["type"] == "output"]) < 2):
+            print("Error: supported only one output layer.")
+            exit()
+
+        for layer in self.structure:
+            if self.structure[layer]["type"] != "input" and self.structure[layer]["input_layer"] not in self.structure:
+                print("Error: in layer " + layer + " input layer specified is " +
+                      self.structure[layer]["input_layer"] + " but no layer with this name exists.")
+                exit()
+
+            if self.structure[layer]["type"] != "output" and \
+                not any("input_layer" in self.structure[out_layer] and
+                                self.structure[out_layer]["input_layer"] == layer for out_layer in self.structure):
+                    print("Error: for layer " + layer + " no output layer found. Possible error designing structure.")
+                    exit()
+
+    def commit_structure(self):
+        self.sanity_check()
         new_structure = dict()
-        # for input_layer in [self.structure[input_layers] for input_layers in self.structure if "input" in input_layers]:
         for layer in self.structure:
             input_layer = ""
             output_layer = ""
@@ -93,6 +134,7 @@ class BaseNeuralNetwork:
                 "bias": biases,
                 "data": None,
                 "sensitivity": None,
+                "weight_update": None,
                 "activation": activation_function,
                 "input_layer": input_layer,
                 "output_layer": output_layer
@@ -102,18 +144,86 @@ class BaseNeuralNetwork:
             if new_structure[layer]["type"] == "output":
                 self.output_layers.append(new_structure[layer])
 
-        if not(0 < len(self.input_layers) < 2):
-            print("Error: supported only one input layer.")
-            exit()
-
-        if not(0 < len(self.output_layers) < 2):
-            print("Error: supported only one output layer.")
-            exit()
-
         self.structure = new_structure
 
-    def forward(self, input_data: numpy.Array):
+    def weights_initialization(self):
+        # TODO
         pass
 
-    def backward(self, output_data: numpy.Array, target_data: numpy.Array):
+    def prepare_data(self, input_data: numpy.Array) -> numpy.Array:
+        if self.normalization is True:
+            input_data = self.normalize_data(input_data)
+
+        if self.standardization is True:
+            input_data = self.standardize_data(input_data)
+
+        return input_data
+
+    @staticmethod
+    def normalize_data(input_data: numpy.Array) -> numpy.Array:
+        minimum = numpy.min(input_data)
+        maximum = numpy.max(input_data)
+        for rows in range(input_data):
+            for columns in range(input_data[rows]):
+                input_data[rows][columns] = (input_data[rows][columns] - minimum) / (maximum - minimum)
+        return input_data
+
+    @staticmethod
+    def standardize_data(input_data: numpy.Array) -> numpy.Array:
+        mean = numpy.mean(input_data)
+        std = numpy.std(input_data)
+        for rows in range(input_data):
+            for columns in range(input_data[rows]):
+                input_data[rows][columns] = (input_data[rows][columns] - mean) / std
+        return input_data
+
+    def forward(self, input_data: numpy.Array) -> numpy.Array:
+        pass
+
+    def backward(self, output_data: numpy.Array, target_data: numpy.Array) -> int:
+        pass
+
+    def update_weights(self):
+        for layer in [self.structure[layers] for layers in self.structure if layers["type"] != "input"]:
+            # W_new(i) = W_old(i) - decay * S(i) * input(i)T
+            layer["weight"] = layer["weight"] - self.learning_rate * layer["weight_update"]
+            layer["weight_update"] = 0
+
+    def train(self,
+              input_data: numpy.Array,
+              target_data: numpy.Array,
+              epochs: int,
+              batch_size: int=1):
+
+        for epoch in range(epochs):
+            print("Epoch " + str(epoch))
+            batch = 0
+            total_correct = 0
+            total_value = 0
+            total_loss = 0.0
+            for input_element, target_element in zip(input_data, target_data):
+                output_element = self.forward(input_element)
+                step_loss = self.backward(output_element, target_element)
+                total_loss += step_loss
+                batch += 1
+                total_value += 1
+
+                if output_element == target_element or \
+                    (self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX and
+                     numpy.argmax(output_element, axis=1) == numpy.argmax(target_element, axis=1)):
+                    total_correct += 1
+
+                print("Step loss: " + str(step_loss))
+                if total_value % int(len(input_data) / 10) == 0:
+                    print("Epoch " + str(total_value % int(len(input_data) / 10)) + " complete!")
+
+                if batch == batch_size:
+                    batch = 0
+                    self.update_weights()
+
+            self.update_weights()
+            print("Epoch loss: " + str(round(total_loss/total_value, 3)) +
+                  ", epoch accuracy: " + str(round(total_correct/total_value, 3)))
+
+    def test(self, input_data: numpy.Array, target_data: numpy.Array):
         pass

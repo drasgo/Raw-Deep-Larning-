@@ -8,20 +8,18 @@ class MLP(BaseNeuralNetwork):
 
     def forward(self, input_data):
         import pprint
-
+        input_data = self.prepare_data(input_data)
         # Add check for input data. E.g. correct size, all numeric values, etc.
         output = None
         for input_layer in self.input_layers:
             # TODO: implement multiple input layers
-            # pprint.pprint(self.input_layers)
-            # input()
             prev_layer = input_layer
             prev_layer["data"] = input_data
 
             while True:
                 curr_layer = self.structure[prev_layer["output_layer"]]
                 output_data = numpy.dot(curr_layer["weight"], prev_layer["data"]) + curr_layer["bias"]
-                # output_data = curr_layer["activation"].forward(output_data)
+                output_data = curr_layer["activation"].forward(output_data)
                 curr_layer["data"] = output_data
                 prev_layer = curr_layer
 
@@ -36,11 +34,12 @@ class MLP(BaseNeuralNetwork):
         return output
 
     def backward(self, output_data, target_data):
-        # Compute sensitivities from m to 1 layer
-        # Then new_W(i) = old_W(i) - decay * S(i) (sensitivity of layer i) * (input to layer i)T (meaning transpose of input layer i)
-        # sensitivity of i ( S(i) ) = derivative of function Fi * old_W(i+1)T * S(i+1)
-        # except for layer m, where sensitivity of m ( S(m) ) = derivative of function Fi (usually linear) * derivative of loss (integer)
-
+        """
+        Compute sensitivities from m to 1 layer
+        Then new_W(i) = old_W(i) - decay * S(i) (sensitivity of layer i) * (input to layer i)T (meaning transpose of input layer i)
+        sensitivity of i ( S(i) ) = derivative of function Fi * old_W(i+1)T * S(i+1)
+        except for layer m, where sensitivity of m ( S(m) ) = derivative of function Fi (usually linear) * derivative of loss (integer)
+        """
         loss = self.loss_function.forward(output_data, target_data)
         loss_derivative = self.loss_function.derivative(output_data, target_data)
 
@@ -63,13 +62,6 @@ class MLP(BaseNeuralNetwork):
                                   prev_layer["sensitivity"]
 
                 curr_layer["sensitivity"] = sensitivity
-                # updates = sensitivity * numpy.transpose(self.structure[curr_layer["input_layer"]]["data"])
-                # curr_layer["weights_updates"] = updates
-
-        for layer in [self.structure[layers] for layers in self.structure if layers["type"] != "input"]:
-            # W_new(i) = W_old(i) - decay * S(i) * input(i)T
-            layer["weight"] = layer["weight"] - (self.training_decay *
-                                                 sensitivity *
-                                                 numpy.transpose(self.structure[curr_layer["input_layer"]]["data"]))
-
+                updates = sensitivity * numpy.transpose(self.structure[curr_layer["input_layer"]]["data"])
+                curr_layer["weight_update"] += updates
         return loss
