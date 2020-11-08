@@ -200,11 +200,13 @@ class BaseNeuralNetwork:
             self.structure = self.parallel_structure.copy()
 
     def parallel_train(self,
-              input_data: list,
-              validation_data: list,
-              epochs: int,
-              batch_size: int=1,
-              parallel_batches: int=1):
+                       input_data: numpy.Array,
+                       target_data: numpy.Array,
+                       validation_input: numpy.Array,
+                       validation_target: numpy.Array,
+                       epochs: int,
+                       batch_size: int=1,
+                       parallel_batches: int=1):
         self.parallel_structure = multiprocessing.Manager().dict(self.structure)
 
         for epoch in range(epochs):
@@ -212,7 +214,9 @@ class BaseNeuralNetwork:
             for batches in range(parallel_batches):
                 p = multiprocessing.Process(target=self.train, args=(
                     input_data,
-                    validation_data,
+                    target_data,
+                    validation_input,
+                    validation_target,
                     1,
                     batch_size,
                     True
@@ -223,7 +227,6 @@ class BaseNeuralNetwork:
             for element in processors:
                 element.join()
 
-
     def train(self,
               input_data: numpy.Array,
               target_data: numpy.Array,
@@ -232,6 +235,11 @@ class BaseNeuralNetwork:
               epochs: int=1,
               batch_size: int=1,
               parallel: bool=False):
+
+        if len(validation_input) == 0:
+            validation_input = input_data[:int(len(input_data)*0.85)]
+        if len(validation_target) == 0:
+            validation_target = target_data[:int(len(target_data)*0.85)]
 
         print("Training:")
         for epoch in range(epochs):
