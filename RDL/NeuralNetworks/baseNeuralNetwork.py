@@ -1,4 +1,5 @@
 import numpy
+import multiprocessing
 from RDL.NeuralNetworks.activationFunctions import ActivationFunctions
 
 
@@ -14,6 +15,8 @@ class BaseNeuralNetwork:
         self.learning_rate = 0.1
         self.normalization = True
         self.standardization = True
+        self.parallel_structure = multiprocessing.Manager().dict()
+        self.validation_threshold = 0.001
 
     def add_input_layer(self, layer_name: str, input_nodes: int):
         self.structure[layer_name] = {
@@ -183,18 +186,54 @@ class BaseNeuralNetwork:
     def backward(self, output_data: numpy.Array, target_data: numpy.Array) -> int:
         pass
 
-    def update_weights(self):
-        for layer in [self.structure[layers] for layers in self.structure if layers["type"] != "input"]:
-            # W_new(i) = W_old(i) - decay * S(i) * input(i)T
-            layer["weight"] = layer["weight"] - self.learning_rate * layer["weight_update"]
-            layer["weight_update"] = 0
+    def update_weights(self, parallel: bool=False):
+        if parallel is False:
+            for layer in [self.structure[layers] for layers in self.structure if layers["type"] != "input"]:
+                # W_new(i) = W_old(i) - decay * S(i) * input(i)T
+                layer["weight"] = layer["weight"] - self.learning_rate * layer["weight_update"]
+                layer["weight_update"] = numpy.zeros(layer["weight_update"].shape)
+        else:
+            for layer in [layers for layers in self.structure if layers["type"] != "input"]:
+                self.parallel_structure[layer]["weight"] = self.parallel_structure[layer]["weight"] - \
+                                                           self.learning_rate * self.structure[layer]["weight_update"]
+                self.structure[layer]["weight_update"] = numpy.zeros(self.structure[layer]["weight_update"].shape)
+            self.structure = self.parallel_structure.copy()
+
+    def parallel_train(self,
+              input_data: list,
+              validation_data: list,
+              epochs: int,
+              batch_size: int=1,
+              parallel_batches: int=1):
+        self.parallel_structure = multiprocessing.Manager().dict(self.structure)
+
+        for epoch in range(epochs):
+            processors = []
+            for batches in range(parallel_batches):
+                p = multiprocessing.Process(target=self.train, args=(
+                    input_data,
+                    validation_data,
+                    1,
+                    batch_size,
+                    True
+                    ))
+                p.start()
+                processors.append(p)
+
+            for element in processors:
+                element.join()
+
 
     def train(self,
               input_data: numpy.Array,
               target_data: numpy.Array,
-              epochs: int,
-              batch_size: int=1):
+              validation_input: numpy.Array,
+              validation_target: numpy.Array,
+              epochs: int=1,
+              batch_size: int=1,
+              parallel: bool=False):
 
+        print("Training:")
         for epoch in range(epochs):
             print("Epoch " + str(epoch))
             batch = 0
@@ -219,11 +258,46 @@ class BaseNeuralNetwork:
 
                 if batch == batch_size:
                     batch = 0
-                    self.update_weights()
+                    self.update_weights(parallel)
 
-            self.update_weights()
+            self.update_weights(parallel)
+
             print("Epoch loss: " + str(round(total_loss/total_value, 3)) +
                   ", epoch accuracy: " + str(round(total_correct/total_value, 3)))
 
-    def test(self, input_data: numpy.Array, target_data: numpy.Array):
-        pass
+            if self.validation(validation_input, validation_target) is True:
+                break
+
+        return self.structure
+
+    def validation(self, validation_input: numpy.Array, validation_target: numpy.Array):
+        if len(validation_input) == 0 or len(validation_target) == 0 or len(validation_input) != len(validation_target):
+            return False
+
+        loss = 0
+        for data, target in zip(validation_input, validation_target):
+            output_element = self.forward(data)
+            loss += self.loss_function.forward(output_element, target)
+
+        if loss < self.validation_threshold:
+            return True
+        else:
+            return False
+
+    def test(self, test_input: numpy.Array, test_target: numpy.Array):
+        loss = 0
+        total_correct = 0
+        total_value = 0
+        print("Testing")
+        for data, target in zip(test_input, test_target):
+            output_element = self.forward(data)
+            loss += self.loss_function.forward(output_element, target)
+            total_value += 1
+
+            if output_element == target or \
+                    (self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX and
+                     numpy.argmax(output_element, axis=1) == numpy.argmax(target, axis=1)):
+                total_correct += 1
+
+        print("Testing loss: " + str(round(loss / total_value, 3)) +
+              ", testing accuracy: " + str(round(total_correct / total_value, 3)))
