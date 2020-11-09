@@ -1,13 +1,15 @@
 from RDL.NeuralNetworks.baseNeuralNetwork import BaseNeuralNetwork
+from RDL.configs.debug import Verbosity, logger
 import numpy
 
 
 class MLP(BaseNeuralNetwork):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, verbose: Verbosity=Verbosity.RELEASE):
+        super().__init__(verbose)
 
     def forward(self, input_data):
         import pprint
+
         input_data = self.prepare_data(input_data)
         # Add check for input data. E.g. correct size, all numeric values, etc.
         output = None
@@ -18,7 +20,10 @@ class MLP(BaseNeuralNetwork):
 
             while True:
                 curr_layer = self.structure[prev_layer["output_layer"]]
-                output_data = numpy.dot(curr_layer["weight"], prev_layer["data"]) + curr_layer["bias"]
+                output_data = (
+                    numpy.dot(curr_layer["weight"], prev_layer["data"])
+                    + curr_layer["bias"]
+                )
                 output_data = curr_layer["activation"].forward(output_data)
                 curr_layer["data"] = output_data
                 prev_layer = curr_layer
@@ -52,16 +57,23 @@ class MLP(BaseNeuralNetwork):
 
                 elif curr_layer["type"] == "output":
                     # S(output) = f'(x) * loss'
-                    sensitivity = curr_layer["activation"].derivative(curr_layer["data"]) * loss_derivative
+                    sensitivity = (
+                        curr_layer["activation"].derivative(curr_layer["data"])
+                        * loss_derivative
+                    )
 
                 else:
                     # S(i) = f'(x) * W(i+1)T * S(i+1)
                     prev_layer = self.structure[curr_layer["output_layer"]]
-                    sensitivity = curr_layer["activation"].derivative(curr_layer["data"]) * \
-                                  numpy.transpose(prev_layer["weight"]) * \
-                                  prev_layer["sensitivity"]
+                    sensitivity = (
+                        curr_layer["activation"].derivative(curr_layer["data"])
+                        * numpy.transpose(prev_layer["weight"])
+                        * prev_layer["sensitivity"]
+                    )
 
                 curr_layer["sensitivity"] = sensitivity
-                updates = sensitivity * numpy.transpose(self.structure[curr_layer["input_layer"]]["data"])
+                updates = sensitivity * numpy.transpose(
+                    self.structure[curr_layer["input_layer"]]["data"]
+                )
                 curr_layer["weight_update"] += updates
         return loss

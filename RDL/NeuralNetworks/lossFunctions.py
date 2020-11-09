@@ -18,7 +18,7 @@ class _CrossEntropy:
     @staticmethod
     def forward(output, target):
         loss = target * log(numpy.transpose(output))
-        return - numpy.sum(loss)
+        return -numpy.sum(loss)
 
     @staticmethod
     def derivative(output, target):
