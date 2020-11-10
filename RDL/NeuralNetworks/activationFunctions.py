@@ -4,37 +4,72 @@ import numpy
 
 
 class _Ops:
+    """ """
     @staticmethod
-    def forward(input_data: numpy.array):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
         pass
 
     @staticmethod
-    def derivative(input_data: numpy.array):
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
         pass
 
 
 class _Linear(_Ops):
+    """ """
+    name = "Linear"
     @staticmethod
-    def forward(input_data: numpy.array):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
         return numpy.ones(shape=input_data.shape)
 
 
 class _Relu(_Ops):
+    """ """
+    name = "Relu"
     @staticmethod
-    def forward(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 input_data[rows][columns] = max(0, input_data[rows][columns])
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 if input_data[rows][columns] > 0:
                     input_data[rows][columns] = 1
                 else:
@@ -43,17 +78,29 @@ class _Relu(_Ops):
 
 
 class _LeakyRelu(_Ops):
+    """ """
+    name = "Leaky Relu"
     @staticmethod
-    def forward(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 input_data[rows][columns] = max(0.01, input_data[rows][columns])
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 if input_data[rows][columns] > 0:
                     input_data[rows][columns] = 1
                 else:
@@ -62,66 +109,111 @@ class _LeakyRelu(_Ops):
 
 
 class _Sigmoid(_Ops):
+    """ """
+    name = "Sigmoid"
     @staticmethod
-    def forward(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 input_data[rows][columns] = 1 / (1 + exp(-input_data[rows][columns]))
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        """f'(x) = f(x) * (1 - f(x))"""
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """f'(x) = f(x) * (1 - f(x))
+
+        :param input_data: numpy.array: 
+
+        """
         return input_data * (1 - input_data)
 
 
 class _Tanh(_Ops):
+    """ """
+    name = "Tanh"
     @staticmethod
-    def forward(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
-                input_data[rows][columns] = (
-                    2 * (1 / (1 + exp(-input_data[rows][columns]))) - 1
-                )
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
+                pos_e = exp(input_data[rows][columns])
+                neg_e = exp(-input_data[rows][columns])
+                input_data[rows][columns] = (pos_e - neg_e) / (pos_e + neg_e)
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        """f'(x) = 1 - f(x)^2"""
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """f'(x) = 1 - f(x)^2
+
+        :param input_data: numpy.array: 
+
+        """
         return 1 - input_data ** 2
 
 
 class _Swish(_Ops):
-    """
-    Swish implemented following https://arxiv.org/abs/1710.05941
+    """Swish implemented following https://arxiv.org/abs/1710.05941
     f(x) = x * sigmoid(bx) where b can be a constant or a trainable parameter.
     In this implementation, b is costant 1
-    """
 
+
+    """
+    name = "Swish"
     @staticmethod
-    def forward(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 input_data[rows][columns] = input_data[rows][columns] * (
                     1 / (1 + exp(-input_data[rows][columns]))
                 )
         return input_data
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        """f'(x) = f(x) + (sigmoid(x) * (1 - f(x)))"""
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """f'(x) = f(x) + (sigmoid(x) * (1 - f(x)))
+
+        :param input_data: numpy.array: 
+
+        """
         return input_data + (_Sigmoid.forward(input_data) * (1 - input_data))
 
 
 class _Softmax(_Ops):
+    """ """
+    name = "Softmax"
     @staticmethod
-    def forward(input_data: numpy.array):
-        return numpy.exp(input_data) / numpy.sum(input_data)
+    def forward(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        pos_e = numpy.exp(input_data)
+        return pos_e / numpy.sum(pos_e)
 
     @staticmethod
-    def derivative(input_data: numpy.array):
-        for rows in range(input_data):
-            for columns in range(input_data[rows]):
+    def derivative(input_data: numpy.array) -> numpy.array:
+        """
+
+        :param input_data: numpy.array: 
+
+        """
+        for rows in range(input_data.shape[0]):
+            for columns in range(input_data.shape[1]):
                 if rows == columns:
                     delta = 1
                 else:
@@ -129,9 +221,11 @@ class _Softmax(_Ops):
                 input_data[rows][columns] = input_data[rows][columns] * (
                     delta - input_data[rows][columns]
                 )
+        return input_data
 
 
 class ActivationFunctions(Enum):
+    """ """
     LINEAR = _Linear
     RELU = _Relu
     LRELU = _LeakyRelu

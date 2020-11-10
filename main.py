@@ -3,6 +3,7 @@ import RDL.configs.terminal_commands
 import RDL.configs.mnist_load
 from RDL.NeuralNetworks.activationFunctions import ActivationFunctions
 from RDL.NeuralNetworks.lossFunctions import LossFunctions
+from RDL.configs.debug import Verbosity
 import numpy
 import pprint
 
@@ -13,7 +14,7 @@ if __name__ == "__main__":
     # get data
 
     # create new mlp
-    net = MLP()
+    net = MLP(verbose=Verbosity.DEBUG)
     net.add_input_layer("input", 2)
     net.add_layer("h1", "input", 3, ActivationFunctions.TANH)
     net.add_layer("h2", "h1", 5, ActivationFunctions.SIGMOID)

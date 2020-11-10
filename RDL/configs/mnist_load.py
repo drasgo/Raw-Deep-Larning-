@@ -6,13 +6,14 @@ import pickle
 
 
 def load_synth(num_train=60_000, num_val=10_000):
-    """
-    Load some very basic synthetic data that should be easy to classify. Two features, so that we can plot the
+    """Load some very basic synthetic data that should be easy to classify. Two features, so that we can plot the
     decision boundary (which is an ellipse in the feature space).
-    :param num_train: Number of training instances
-    :param num_val: Number of test/validation instances
+
+    :param num_train: Number of training instances (Default value = 60_000)
+    :param num_val: Number of test/validation instances (Default value = 10_000)
     :param num_features: Number of features per instance
-    :return: Two tuples (xtrain, ytrain), (xval, yval) the training data is a floating point numpy array:
+    :returns: Two tuples (xtrain, ytrain), (xval, yval) the training data is a floating point numpy array:
+
     """
 
     THRESHOLD = 0.6
@@ -30,12 +31,12 @@ def load_synth(num_train=60_000, num_val=10_000):
 
 
 def load_mnist(final=False, flatten=True):
-    """
-    Load the MNIST data
+    """Load the MNIST data
+
     :param final: If true, return the canonical test/train split. If false, split some validation data from the training
-       data and keep the test data hidden.
-    :param flatten:
-    :return:
+       data and keep the test data hidden. (Default value = False)
+    :param flatten: return: (Default value = True)
+
     """
 
     if not os.path.isfile("mnist.pkl"):
@@ -66,6 +67,7 @@ filename = [
 
 
 def download_mnist():
+    """ """
     base_url = "http://yann.lecun.com/exdb/mnist/"
     for name in filename:
         print("Downloading " + name[1] + "...")
@@ -74,6 +76,7 @@ def download_mnist():
 
 
 def save_mnist():
+    """ """
     mnist = {}
     for name in filename[:2]:
         with gzip.open(name[1], "rb") as f:
@@ -89,11 +92,13 @@ def save_mnist():
 
 
 def init():
+    """ """
     download_mnist()
     save_mnist()
 
 
 def load():
+    """ """
     with open("mnist.pkl", "rb") as f:
         mnist = pickle.load(f)
     return (

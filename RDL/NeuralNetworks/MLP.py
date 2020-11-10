@@ -4,12 +4,17 @@ import numpy
 
 
 class MLP(BaseNeuralNetwork):
+    """ """
     def __init__(self, verbose: Verbosity=Verbosity.RELEASE):
         super().__init__(verbose)
 
     def forward(self, input_data):
-        import pprint
+        """
 
+        :param input_data: 
+
+        """
+        logger("STARTING FORWARD PASS FOR INPUT DATA: " + str(input_data), self.verbose)
         input_data = self.prepare_data(input_data)
         # Add check for input data. E.g. correct size, all numeric values, etc.
         output = None
@@ -24,56 +29,65 @@ class MLP(BaseNeuralNetwork):
                     numpy.dot(curr_layer["weight"], prev_layer["data"])
                     + curr_layer["bias"]
                 )
-                output_data = curr_layer["activation"].forward(output_data)
+                logger("Forward pass for layer " + curr_layer["name"] +
+                       "\nInput data: " + str(prev_layer["data"]) +
+                       "\nLayer weights: " + str(curr_layer["weight"]) +
+                       "\nLayer biases: " + str(curr_layer["bias"]) +
+                       "\nLayer activation function: " + str(curr_layer["activation"].value.name) +
+                       "\n(Curr matrix * Prev data) + Curr biases = " + str(output_data), self.verbose)
+                output_data = curr_layer["activation"].value.forward(output_data)
                 curr_layer["data"] = output_data
                 prev_layer = curr_layer
-
-                print("\n\n\n")
-                print("layer " + curr_layer["name"] + ". result: ")
-                pprint.pprint(output_data)
+                logger(curr_layer["activation"].value.name + "(Curr data) = " + str(output_data), self.verbose)
 
                 if curr_layer["type"] == "output":
                     output = curr_layer["data"]
                     break
-
+        logger("FINISHED FORWARD PASS", self.verbose)
         return output
 
     def backward(self, output_data, target_data):
-        """
-        Compute sensitivities from m to 1 layer
+        """Compute sensitivities from m to 1 layer
         Then new_W(i) = old_W(i) - decay * S(i) (sensitivity of layer i) * (input to layer i)T (meaning transpose of input layer i)
         sensitivity of i ( S(i) ) = derivative of function Fi * old_W(i+1)T * S(i+1)
         except for layer m, where sensitivity of m ( S(m) ) = derivative of function Fi (usually linear) * derivative of loss (integer)
+
+        :param output_data: 
+        :param target_data: 
+
         """
-        loss = self.loss_function.forward(output_data, target_data)
-        loss_derivative = self.loss_function.derivative(output_data, target_data)
+        logger("STARTING BACKWARD PASS", self.verbose)
+        loss = self.loss_function.value.forward(output_data, target_data)
+        loss_derivative = self.loss_function.value.derivative(output_data, target_data)
+        logger("Loss: " + str(loss) + "\nLoss derivative: " + str(loss_derivative), self.verbose)
 
         for output_layer in self.output_layers:
-            curr_layer = self.structure[output_layer]
+            curr_layer = output_layer
 
             while True:
                 if curr_layer["type"] == "input":
                     break
 
-                elif curr_layer["type"] == "output":
+                function_derivative = curr_layer["activation"].value.derivative(curr_layer["data"])
+                if curr_layer["type"] == "output":
                     # S(output) = f'(x) * loss'
-                    sensitivity = (
-                        curr_layer["activation"].derivative(curr_layer["data"])
-                        * loss_derivative
-                    )
-
+                    sensitivity = function_derivative * loss_derivative
+                    logger("Computed sensitivity (function derivative * loss derivative) for layer " +
+                           curr_layer["name"] + ": " + str(sensitivity), self.verbose)
                 else:
                     # S(i) = f'(x) * W(i+1)T * S(i+1)
                     prev_layer = self.structure[curr_layer["output_layer"]]
-                    sensitivity = (
-                        curr_layer["activation"].derivative(curr_layer["data"])
-                        * numpy.transpose(prev_layer["weight"])
-                        * prev_layer["sensitivity"]
-                    )
+                    sensitivity = function_derivative * numpy.transpose(prev_layer["weight"]) * prev_layer["sensitivity"]
+                    logger("Computed sensitivity (function derivative * weight matrix transposed * loss derivative) "
+                           "for layer " + curr_layer["name"] + ": " + str(sensitivity), self.verbose)
 
                 curr_layer["sensitivity"] = sensitivity
                 updates = sensitivity * numpy.transpose(
                     self.structure[curr_layer["input_layer"]]["data"]
                 )
                 curr_layer["weight_update"] += updates
+                prev_layer = curr_layer
+                curr_layer = self.structure[prev_layer["input_layer"]]
+
+        logger("FINISHED BACKWARD PASS", self.verbose)
         return loss
