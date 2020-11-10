@@ -33,9 +33,11 @@ if __name__ == "__main__":
         output_data,
         validation_input,
         validation_output,
-        epochs=1,
+        epochs=3,
         batch_size=1,
     )
+
+    net.test(input_data, output_data)
 
     # print stats or result
 

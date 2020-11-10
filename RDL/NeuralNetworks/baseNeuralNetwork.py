@@ -1,8 +1,10 @@
 import numpy
 import multiprocessing
 from RDL.NeuralNetworks.activationFunctions import ActivationFunctions
+from RDL.NeuralNetworks.weightInitialization import WeightInitializations
 from RDL.NeuralNetworks.lossFunctions import LossFunctions
 from RDL.configs.debug import logger, Verbosity
+from typing import Tuple
 import pprint
 
 
@@ -43,13 +45,15 @@ class BaseNeuralNetwork:
             input_layer: str,
             nodes: int,
             activation_function: ActivationFunctions,
+            weight_initialization: WeightInitializations=WeightInitializations.ONES
     ):
         """
 
-        :param layer_name: str: 
-        :param input_layer: str: 
-        :param nodes: int: 
-        :param activation_function: ActivationFunctions: 
+        :param layer_name: str:
+        :param input_layer: str:
+        :param nodes: int:
+        :param activation_function: ActivationFunctions:
+        :param weight_initialization: WeightInitializations.ONES
 
         """
         self.structure[layer_name] = {
@@ -58,6 +62,7 @@ class BaseNeuralNetwork:
             "nodes": nodes,
             "activation": activation_function,
             "input_layer": input_layer,
+            "weight_initialization": weight_initialization
         }
         logger("Added hidden layer: ", self.verbose)
         logger(self.structure[layer_name], self.verbose)
@@ -68,6 +73,7 @@ class BaseNeuralNetwork:
             input_layer: str,
             nodes: int,
             activation_function: ActivationFunctions = ActivationFunctions.LINEAR,
+            weight_initialization: WeightInitializations = WeightInitializations.ONES
     ):
         """
 
@@ -75,6 +81,8 @@ class BaseNeuralNetwork:
         :param input_layer: str: 
         :param nodes: int: 
         :param activation_function: ActivationFunctions:  (Default value = ActivationFunctions.LINEAR)
+        :param weight_initialization: WeightInitializations.ONES
+
 
         """
         self.structure[layer_name] = {
@@ -83,6 +91,7 @@ class BaseNeuralNetwork:
             "activation": activation_function,
             "nodes": nodes,
             "input_layer": input_layer,
+            "weight_initialization": weight_initialization
         }
         logger("Added output layer: ", self.verbose)
         logger(self.structure[layer_name], self.verbose)
@@ -133,14 +142,13 @@ class BaseNeuralNetwork:
         logger("Added learning rate: " + str(learning_rate), self.verbose)
 
     def sanity_check(self):
-        """This method performs a sanity control of the structure. Orderly, it checks that:
+        """
+        This method performs a sanity control of the structure. Orderly, it checks that:
         - a loss function is provided
         - there is only one Input layer
         - there is only one Output layer
         - every layer has an input layer (data comes from a past layer), except Input layer
         - every layer has an ouput layer (data goes to another layer), except Output layer
-
-
         """
         if self.loss_function is None:
             print("Error: loss function missing or not recognized.")
@@ -207,6 +215,7 @@ class BaseNeuralNetwork:
             if self.structure[layer]["type"] != "input":
                 activation_function = self.structure[layer]["activation"]
                 input_layer = self.structure[layer]["input_layer"]
+                # TODO: add weight initialization.
                 weights = numpy.ones(
                     (
                         self.structure[layer]["nodes"],
@@ -237,11 +246,6 @@ class BaseNeuralNetwork:
         self.structure = new_structure
         logger("Final structure committed: ", self.verbose)
         logger(self.structure, self.verbose)
-
-    def weights_initialization(self):
-        """ """
-        # TODO
-        pass
 
     def prepare_data(self, input_data: numpy.ndarray) -> numpy.ndarray:
         """
@@ -403,13 +407,13 @@ class BaseNeuralNetwork:
                 element.join()
         print("Finished training!")
 
-    def check_input_validation_data(
+    def check_validation_data(
             self,
             input_data: numpy.ndarray,
             target_data: numpy.ndarray,
             validation_input: numpy.ndarray,
             validation_target: numpy.ndarray,
-    ):
+    ) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]:
         """
 
         :param input_data: numpy.ndarray:
@@ -431,11 +435,6 @@ class BaseNeuralNetwork:
             validation_target = target_data[int(len(target_data) * 0.85) :]
             target_data = target_data[: int(len(input_data) * 0.85)]
 
-        rows, columns = input_data.shape
-        if rows == 1 or columns == 1:
-            input_data = numpy.array([input_data])
-            target_data = numpy.array([target_data])
-
         logger("Checking arrays sizes (After): "
                "\n -input size: " + str(input_data.shape) +
                "\n -target size: " + str(target_data.shape) +
@@ -443,6 +442,17 @@ class BaseNeuralNetwork:
                "\n -validation target size: " + str(validation_target.shape), self.verbose
                )
         return input_data, target_data, validation_input, validation_target
+
+    def check_input_target_size(
+            self,
+            input_data: numpy.ndarray,
+            target_data: numpy.ndarray
+    ) -> Tuple[numpy.ndarray, numpy.ndarray]:
+        rows, columns = input_data.shape
+        if rows == 1 or columns == 1:
+            input_data = numpy.array([input_data])
+            target_data = numpy.array([target_data])
+        return input_data, target_data
 
     def train(
             self,
@@ -474,13 +484,14 @@ class BaseNeuralNetwork:
             target_data,
             validation_input,
             validation_target,
-        ) = self.check_input_validation_data(
+        ) = self.check_validation_data(
             input_data, target_data, validation_input, validation_target
         )
+        input_data, target_data = self.check_input_target_size(input_data, target_data)
 
-        print("Training:")
+        logger("Training:", Verbosity.DEBUG)
         for epoch in range(epochs):
-            print("Epoch " + str(epoch))
+            logger("Epoch " + str(epoch), Verbosity.DEBUG)
             batch = 0
             total_correct = 0
             total_value = 0
@@ -502,7 +513,6 @@ class BaseNeuralNetwork:
                 batch += 1
                 total_value += 1
 
-                logger("Step loss: " + str(step_loss), self.verbose)
                 if output_element == target_element or (
                         self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX
                         and numpy.argmax(output_element, axis=1)
@@ -510,12 +520,12 @@ class BaseNeuralNetwork:
                 ):
                     total_correct += 1
 
-                print("Step loss: " + str(step_loss))
-                logger("Input shape: " + str(input_data.shape), self.verbose)
+                logger("Step loss: " + str(step_loss) +
+                       "\nInput shape: " + str(input_data.shape), Verbosity.DEBUG)
                 if ((total_value / int(input_data.shape[0])) * 100) % 10 == 0:
-                    print(
+                    logger(
                         "Epoch " + str(epoch) + ": " +
-                        str(((total_value / int(input_data.shape[0])) * 100)) + "% complete!"
+                        str(((total_value / int(input_data.shape[0])) * 100)) + "% complete!", Verbosity.DEBUG
                     )
 
                 if batch == batch_size:
@@ -525,19 +535,19 @@ class BaseNeuralNetwork:
 
             self.update_weights(parallel, batch_size)
 
-            print(
+            logger(
                 "Epoch loss: "
                 + str(round(total_loss / total_value, 3))
                 + ", epoch accuracy: "
-                + str(round(total_correct / total_value, 3))
+                + str(round(total_correct / total_value, 3)), Verbosity.DEBUG
             )
 
             if self.validation(validation_input, validation_target) is True:
                 break
 
-        print("Finished training!")
+        logger("Finished training!", Verbosity.DEBUG)
 
-    def validation(self, validation_input: numpy.ndarray, validation_target: numpy.ndarray):
+    def validation(self, validation_input: numpy.ndarray, validation_target: numpy.ndarray) -> bool:
         """
 
         :param validation_input: numpy.ndarray:
@@ -570,6 +580,7 @@ class BaseNeuralNetwork:
         :param test_target: numpy.ndarray:
 
         """
+        test_input, target_data = self.check_input_target_size(test_input, test_target)
         logger("STARTING TESTING", self.verbose)
         loss = 0
         total_correct = 0
@@ -577,7 +588,7 @@ class BaseNeuralNetwork:
         print("Testing")
         for data, target in zip(test_input, test_target):
             output_element = self.forward(data)
-            loss += self.loss_function.forward(output_element, target)
+            loss += self.loss_function.value.forward(output_element, target)
             total_value += 1
             if output_element == target or (
                     self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX
