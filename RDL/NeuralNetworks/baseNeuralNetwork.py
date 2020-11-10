@@ -5,7 +5,6 @@ from RDL.NeuralNetworks.weightInitialization import WeightInitializations
 from RDL.NeuralNetworks.lossFunctions import LossFunctions
 from RDL.configs.debug import logger, Verbosity
 from typing import Tuple
-import pprint
 
 
 class BaseNeuralNetwork:
@@ -431,33 +430,39 @@ class BaseNeuralNetwork:
         if len(validation_input) == 0:
             validation_input = input_data[int(len(input_data) * 0.85) :]
             input_data = input_data[: int(len(input_data) * 0.85)]
+        else:
+            number_of_cases = int(validation_input.size / input_data.shape[1])
+            validation_input = numpy.reshape(validation_input, (number_of_cases, input_data.shape[1], 1))
+
         if len(validation_target) == 0:
             validation_target = target_data[int(len(target_data) * 0.85) :]
             target_data = target_data[: int(len(input_data) * 0.85)]
+        else:
+            number_of_cases = int(validation_target.size / target_data.shape[1])
+            validation_target = numpy.reshape(validation_target, (number_of_cases, target_data.shape[1], 1))
 
-        logger("Checking arrays sizes (After): "
-               "\n -input size: " + str(input_data.shape) +
-               "\n -target size: " + str(target_data.shape) +
-               "\n -validation input size: " + str(validation_input.shape) +
-               "\n -validation target size: " + str(validation_target.shape), self.verbose
-               )
+            logger("Checking arrays sizes (After): "
+                   "\n -input size: " + str(input_data.shape) +
+                   "\n -target size: " + str(target_data.shape) +
+                   "\n -validation input size: " + str(validation_input.shape) +
+                   "\n -validation target size: " + str(validation_target.shape), self.verbose
+                   )
         return input_data, target_data, validation_input, validation_target
 
     def check_input_target_size(
             self,
-            input_data: numpy.ndarray,
-            target_data: numpy.ndarray
-    ) -> Tuple[numpy.ndarray, numpy.ndarray]:
-        rows, columns = input_data.shape
-        if rows == 1 or columns == 1:
-            input_data = numpy.array([input_data])
-            target_data = numpy.array([target_data])
-        return input_data, target_data
+            data: numpy.ndarray,
+            number: int,
+    ) -> numpy.ndarray:
+        if number != 0 :
+            data = numpy.reshape(data, (number, int(data.size / number), 1))
+        return data
 
     def train(
             self,
             input_data: numpy.ndarray,
             target_data: numpy.ndarray,
+            train_pairs: int,
             validation_input: numpy.ndarray = numpy.array([]),
             validation_target: numpy.ndarray = numpy.array([]),
             epochs: int = 1,
@@ -466,6 +471,7 @@ class BaseNeuralNetwork:
     ):
         """
 
+        :param train_pairs: int
         :param input_data: numpy.ndarray:
         :param target_data: numpy.ndarray:
         :param validation_input: numpy.ndarray:  (Default value = numpy.array([]))
@@ -479,6 +485,14 @@ class BaseNeuralNetwork:
                "\n -epochs: " + str(epochs) +
                "\n -batch size: " + str(batch_size) +
                "\n -parallel: " + str(parallel), self.verbose)
+
+        if train_pairs == 0:
+            logger("Error: number of pairs must be higher than 0!")
+            exit()
+
+        input_data = self.check_input_target_size(input_data, train_pairs)
+        target_data = self.check_input_target_size(target_data, train_pairs)
+
         (
             input_data,
             target_data,
@@ -487,7 +501,7 @@ class BaseNeuralNetwork:
         ) = self.check_validation_data(
             input_data, target_data, validation_input, validation_target
         )
-        input_data, target_data = self.check_input_target_size(input_data, target_data)
+        # input_data, target_data = self.check_input_target_size(input_data, target_data)
 
         logger("Training:", Verbosity.DEBUG)
         for epoch in range(epochs):
@@ -497,12 +511,13 @@ class BaseNeuralNetwork:
             total_value = 0
             total_loss = 0.0
             for input_element, target_element in zip(input_data, target_data):
-                input_row, input_column = input_element.shape
-                target_row, target_column = target_data.shape
-                if input_row == 1:
-                    input_element = input_element.reshape(input_column, input_row)
-                if target_row == 1:
-                    target_data = target_data.reshape(target_row, target_column)
+                logger("Input: " + str(input_element) + "\nTarget: " + str(target_element), self.verbose)
+                # input_row, input_column = input_element.shape
+                # target_row, target_column = target_data.shape
+                # if input_row == 1:
+                #     input_element = input_element.reshape(input_column, input_row)
+                # if target_row == 1:
+                #     target_data = target_data.reshape(target_row, target_column)
 
                 output_element = self.forward(input_element)
                 logger("Forward pass: \n -Input data: " + str(input_element) +
@@ -566,22 +581,27 @@ class BaseNeuralNetwork:
         loss = 0
         for data, target in zip(validation_input, validation_target):
             output_element = self.forward(data)
-            loss += self.loss_function.forward(output_element, target)
+            loss += self.loss_function.value.forward(output_element, target)
         logger("Loss on validation data: " + str(loss), self.verbose)
         if loss < self.validation_threshold:
             return True
         else:
             return False
 
-    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray):
+    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray, test_pairs: int):
         """
 
         :param test_input: numpy.ndarray:
         :param test_target: numpy.ndarray:
 
         """
-        test_input, target_data = self.check_input_target_size(test_input, test_target)
+        # test_input, target_data = self.check_input_target_size(test_input, test_target)
         logger("STARTING TESTING", self.verbose)
+        if test_pairs == 0:
+            logger("Error: number of pairs must be higher than 0!")
+            exit()
+        test_input = self.check_input_target_size(test_input, test_pairs)
+        test_target = self.check_input_target_size(test_target, test_pairs)
         loss = 0
         total_correct = 0
         total_value = 0
