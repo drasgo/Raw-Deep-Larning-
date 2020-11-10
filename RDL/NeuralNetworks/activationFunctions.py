@@ -130,7 +130,7 @@ class _Sigmoid(_Ops):
         :param input_data: numpy.array: 
 
         """
-        return input_data * (1 - input_data)
+        return input_data * (numpy.ones(input_data.shape) - input_data)
 
 
 class _Tanh(_Ops):
@@ -157,7 +157,7 @@ class _Tanh(_Ops):
         :param input_data: numpy.array: 
 
         """
-        return 1 - input_data ** 2
+        return numpy.ones(input_data.shape) - input_data ** 2
 
 
 class _Swish(_Ops):
@@ -189,7 +189,7 @@ class _Swish(_Ops):
         :param input_data: numpy.array: 
 
         """
-        return input_data + (_Sigmoid.forward(input_data) * (1 - input_data))
+        return input_data + (_Sigmoid.forward(input_data) * (numpy.ones(input_data.shape) - input_data))
 
 
 class _Softmax(_Ops):

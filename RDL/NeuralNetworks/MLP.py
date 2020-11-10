@@ -5,7 +5,7 @@ import numpy
 
 class MLP(BaseNeuralNetwork):
     """ """
-    def __init__(self, verbose: Verbosity=Verbosity.RELEASE):
+    def __init__(self, verbose: Verbosity=Verbosity.RELEASE) -> numpy.array:
         super().__init__(verbose)
 
     def forward(self, input_data):
@@ -76,16 +76,23 @@ class MLP(BaseNeuralNetwork):
                            curr_layer["name"] + ": " + str(sensitivity), self.verbose)
                 else:
                     # S(i) = f'(x) * W(i+1)T * S(i+1)
-                    diag_matrix = numpy.diagflat(function_derivative)
-                    logger("Computing sensitivity for layer " + curr_layer["name"] +
-                           "\n -function derivative: " + str(function_derivative) +
-                           "\n -diagonal of function derivative: " + str(diag_matrix) +
-                           "\n -prev layer (" + prev_layer["name"] + ") weight matrix: " + str(prev_layer["weight"]) +
-                           "\n -prev layer transposed weight matrix: " + str(numpy.transpose(prev_layer["weight"])) +
-                           "\n -prev layer sensitivity: " + str(prev_layer["sensitivity"]), self.verbose)
+                    diag_function_derivative = numpy.diagflat(function_derivative)
+                    transposed_weight_matrix = numpy.transpose(prev_layer["weight"])
 
-                    sensitivity = diag_matrix * numpy.transpose(prev_layer["weight"]) * prev_layer["sensitivity"]
-                    logger("Computed sensitivity (function derivative * weight matrix transposed * loss derivative) "
+                    logger("Computing sensitivity for layer " + curr_layer["name"] +
+                           "\n -data computed in forward step: " + str(curr_layer["data"]) +
+                           "\n -function derivative: " + str(function_derivative) +
+                           "\n -diagonal of function derivative: " + str(diag_function_derivative) +
+                           "\n -prev layer (" + prev_layer["name"] + ") weight matrix: " + str(prev_layer["weight"]) +
+                           "\n -prev layer transposed weight matrix: " + str(transposed_weight_matrix) +
+                           "\n -prev layer sensitivity: " + str(prev_layer["sensitivity"]) +
+                           "\n -diagonal function derivative shape: " + str(diag_function_derivative.shape) +
+                           "\n -transposed prev weights shape: " + str(transposed_weight_matrix.shape), self.verbose)
+
+                    sensitivity = numpy.dot(diag_function_derivative, transposed_weight_matrix)
+                    logger("Function derivative * weight matrix transposed: " + str(sensitivity), self.verbose)
+                    sensitivity = numpy.dot(sensitivity, prev_layer["sensitivity"])
+                    logger("Computed sensitivity (function derivative * weight matrix transposed * prev layer sensitivity) "
                            "for layer " + curr_layer["name"] + ": " + str(sensitivity), self.verbose)
 
                 curr_layer["sensitivity"] = sensitivity

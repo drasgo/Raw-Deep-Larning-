@@ -14,7 +14,7 @@ class _MSE:
 
         """
         loss = output - target
-        return numpy.sum(numpy.transpose(loss) * loss)
+        return numpy.sum(numpy.dot(numpy.transpose(loss), loss))
 
     @staticmethod
     def derivative(output, target):

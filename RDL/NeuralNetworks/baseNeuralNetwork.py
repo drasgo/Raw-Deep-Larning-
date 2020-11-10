@@ -243,10 +243,10 @@ class BaseNeuralNetwork:
         # TODO
         pass
 
-    def prepare_data(self, input_data: numpy.array) -> numpy.array:
+    def prepare_data(self, input_data: numpy.ndarray) -> numpy.ndarray:
         """
 
-        :param input_data: numpy.array: 
+        :param input_data: numpy.ndarray:
 
         """
         if self.standardization is True:
@@ -262,10 +262,10 @@ class BaseNeuralNetwork:
         return input_data
 
     @staticmethod
-    def normalize_data(input_data: numpy.array) -> numpy.array:
+    def normalize_data(input_data: numpy.ndarray) -> numpy.ndarray:
         """
 
-        :param input_data: numpy.array: 
+        :param input_data: numpy.ndarray:
 
         """
         minimum = numpy.min(input_data)
@@ -279,10 +279,10 @@ class BaseNeuralNetwork:
         return input_data
 
     @staticmethod
-    def standardize_data(input_data: numpy.array) -> numpy.array:
+    def standardize_data(input_data: numpy.ndarray) -> numpy.ndarray:
         """
 
-        :param input_data: numpy.array: 
+        :param input_data: numpy.ndarray:
 
         """
         mean = numpy.mean(input_data)
@@ -292,19 +292,19 @@ class BaseNeuralNetwork:
                 input_data[rows][columns] = (input_data[rows][columns] - mean) / std
         return input_data
 
-    def forward(self, input_data: numpy.array) -> numpy.array:
+    def forward(self, input_data: numpy.ndarray) -> numpy.ndarray:
         """
 
-        :param input_data: numpy.array: 
+        :param input_data: numpy.ndarray:
 
         """
         pass
 
-    def backward(self, output_data: numpy.array, target_data: numpy.array) -> int:
+    def backward(self, output_data: numpy.ndarray, target_data: numpy.ndarray) -> int:
         """
 
-        :param output_data: numpy.array: 
-        :param target_data: numpy.array: 
+        :param output_data: numpy.ndarray:
+        :param target_data: numpy.ndarray:
 
         """
         pass
@@ -312,27 +312,35 @@ class BaseNeuralNetwork:
     def update_weights(self, parallel: bool = False, batch_size: int=1):
         """
 
+        :param batch_size: int (Default value = 1)
         :param parallel: bool:  (Default value = False)
 
         """
+        if all(numpy.count_nonzero(self.structure[layer]["weight_update"]) == 0 for layer in self.structure):
+            return
+
         if parallel is False:
             logger("Updating weights for sequential execution", self.verbose)
             for layer in [
                 self.structure[layers]
                 for layers in self.structure
-                if layers["type"] != "input"
+                if self.structure[layers]["type"] != "input"
             ]:
-                # W_new(i) = W_old(i) - decay * S(i) * input(i)T
-                logger("Updating layer " + layer["name"] + "'s weight: \nBefore: " + str(layer["weight"]), self.verbose)
+                # W_new(i) = W_old(i) - decay * weight_update (=S(i) * aT)
+                logger("Updating layer " + layer["name"] + "'s weight: " +
+                "\nWeights updates: " + str(layer["weight_update"]) +
+                "\nWeight before: " + str(layer["weight"]), self.verbose)
+
                 layer["weight"] = (
                         layer["weight"] - (self.learning_rate * layer["weight_update"]) / batch_size
                 )
-                logger("\nAfter: " + str(layer["weight"]), self.verbose)
                 layer["weight_update"] = numpy.zeros(layer["weight_update"].shape)
+
+                logger("\nAfter: " + str(layer["weight"]), self.verbose)
         else:
             logger("Updating weights for parallel execution", self.verbose)
             for layer in [
-                layers for layers in self.structure if layers["type"] != "input"
+                layers for layers in self.structure if self.structure[layers]["type"] != "input"
             ]:
                 logger("Updating layer " + layer + "'s weight of shared structure: \nBefore: "
                        + str(self.parallel_structure[layer]["weight"]), self.verbose)
@@ -349,20 +357,20 @@ class BaseNeuralNetwork:
 
     def parallel_train(
             self,
-            input_data: numpy.array,
-            target_data: numpy.array,
-            validation_input: numpy.array,
-            validation_target: numpy.array,
+            input_data: numpy.ndarray,
+            target_data: numpy.ndarray,
+            validation_input: numpy.ndarray,
+            validation_target: numpy.ndarray,
             epochs: int,
             batch_size: int = 1,
             parallel_batches: int = 4,
     ):
         """
 
-        :param input_data: numpy.array: 
-        :param target_data: numpy.array: 
-        :param validation_input: numpy.array: 
-        :param validation_target: numpy.array: 
+        :param input_data: numpy.ndarray:
+        :param target_data: numpy.ndarray:
+        :param validation_input: numpy.ndarray:
+        :param validation_target: numpy.ndarray:
         :param epochs: int: 
         :param batch_size: int:  (Default value = 1)
         :param parallel_batches: int:  (Default value = 4)
@@ -393,20 +401,21 @@ class BaseNeuralNetwork:
 
             for element in processors:
                 element.join()
+        print("Finished training!")
 
     def check_input_validation_data(
             self,
-            input_data: numpy.array,
-            target_data: numpy.array,
-            validation_input: numpy.array,
-            validation_target: numpy.array,
+            input_data: numpy.ndarray,
+            target_data: numpy.ndarray,
+            validation_input: numpy.ndarray,
+            validation_target: numpy.ndarray,
     ):
         """
 
-        :param input_data: numpy.array: 
-        :param target_data: numpy.array: 
-        :param validation_input: numpy.array: 
-        :param validation_target: numpy.array: 
+        :param input_data: numpy.ndarray:
+        :param target_data: numpy.ndarray:
+        :param validation_input: numpy.ndarray:
+        :param validation_target: numpy.ndarray:
 
         """
         logger("Checking arrays sizes (Before): "
@@ -437,20 +446,20 @@ class BaseNeuralNetwork:
 
     def train(
             self,
-            input_data: numpy.array,
-            target_data: numpy.array,
-            validation_input: numpy.array = numpy.array([]),
-            validation_target: numpy.array = numpy.array([]),
+            input_data: numpy.ndarray,
+            target_data: numpy.ndarray,
+            validation_input: numpy.ndarray = numpy.array([]),
+            validation_target: numpy.ndarray = numpy.array([]),
             epochs: int = 1,
             batch_size: int = 1,
             parallel: bool = False,
     ):
         """
 
-        :param input_data: numpy.array: 
-        :param target_data: numpy.array: 
-        :param validation_input: numpy.array:  (Default value = numpy.array([]))
-        :param validation_target: numpy.array:  (Default value = numpy.array([]))
+        :param input_data: numpy.ndarray:
+        :param target_data: numpy.ndarray:
+        :param validation_input: numpy.ndarray:  (Default value = numpy.array([]))
+        :param validation_target: numpy.ndarray:  (Default value = numpy.array([]))
         :param epochs: int:  (Default value = 1)
         :param batch_size: int:  (Default value = 1)
         :param parallel: bool:  (Default value = False)
@@ -478,8 +487,11 @@ class BaseNeuralNetwork:
             total_loss = 0.0
             for input_element, target_element in zip(input_data, target_data):
                 input_row, input_column = input_element.shape
+                target_row, target_column = target_data.shape
                 if input_row == 1:
                     input_element = input_element.reshape(input_column, input_row)
+                if target_row == 1:
+                    target_data = target_data.reshape(target_row, target_column)
 
                 output_element = self.forward(input_element)
                 logger("Forward pass: \n -Input data: " + str(input_element) +
@@ -499,11 +511,11 @@ class BaseNeuralNetwork:
                     total_correct += 1
 
                 print("Step loss: " + str(step_loss))
-                if total_value % int(len(input_data) / 10) == 0:
+                logger("Input shape: " + str(input_data.shape), self.verbose)
+                if ((total_value / int(input_data.shape[0])) * 100) % 10 == 0:
                     print(
-                        "Epoch "
-                        + str(total_value % int(len(input_data) / 10))
-                        + " complete!"
+                        "Epoch " + str(epoch) + ": " +
+                        str(((total_value / int(input_data.shape[0])) * 100)) + "% complete!"
                     )
 
                 if batch == batch_size:
@@ -523,13 +535,13 @@ class BaseNeuralNetwork:
             if self.validation(validation_input, validation_target) is True:
                 break
 
-        return self.structure
+        print("Finished training!")
 
-    def validation(self, validation_input: numpy.array, validation_target: numpy.array):
+    def validation(self, validation_input: numpy.ndarray, validation_target: numpy.ndarray):
         """
 
-        :param validation_input: numpy.array: 
-        :param validation_target: numpy.array: 
+        :param validation_input: numpy.ndarray:
+        :param validation_target: numpy.ndarray:
 
         """
         logger("VALIDATION CHECK", self.verbose)
@@ -551,11 +563,11 @@ class BaseNeuralNetwork:
         else:
             return False
 
-    def test(self, test_input: numpy.array, test_target: numpy.array):
+    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray):
         """
 
-        :param test_input: numpy.array: 
-        :param test_target: numpy.array: 
+        :param test_input: numpy.ndarray:
+        :param test_target: numpy.ndarray:
 
         """
         logger("STARTING TESTING", self.verbose)
