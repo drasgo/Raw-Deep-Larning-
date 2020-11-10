@@ -309,7 +309,7 @@ class BaseNeuralNetwork:
         """
         pass
 
-    def update_weights(self, parallel: bool = False):
+    def update_weights(self, parallel: bool = False, batch_size: int=1):
         """
 
         :param parallel: bool:  (Default value = False)
@@ -325,7 +325,7 @@ class BaseNeuralNetwork:
                 # W_new(i) = W_old(i) - decay * S(i) * input(i)T
                 logger("Updating layer " + layer["name"] + "'s weight: \nBefore: " + str(layer["weight"]), self.verbose)
                 layer["weight"] = (
-                        layer["weight"] - self.learning_rate * layer["weight_update"]
+                        layer["weight"] - (self.learning_rate * layer["weight_update"]) / batch_size
                 )
                 logger("\nAfter: " + str(layer["weight"]), self.verbose)
                 layer["weight_update"] = numpy.zeros(layer["weight_update"].shape)
@@ -336,9 +336,10 @@ class BaseNeuralNetwork:
             ]:
                 logger("Updating layer " + layer + "'s weight of shared structure: \nBefore: "
                        + str(self.parallel_structure[layer]["weight"]), self.verbose)
+
                 self.parallel_structure[layer]["weight"] = (
                         self.parallel_structure[layer]["weight"]
-                        - self.learning_rate * self.structure[layer]["weight_update"]
+                        - (self.learning_rate * self.structure[layer]["weight_update"]) / batch_size
                 )
                 self.structure[layer]["weight_update"] = numpy.zeros(
                     self.structure[layer]["weight_update"].shape
@@ -508,9 +509,9 @@ class BaseNeuralNetwork:
                 if batch == batch_size:
                     batch = 0
                     logger("updating weights", self.verbose)
-                    self.update_weights(parallel)
+                    self.update_weights(parallel, batch_size)
 
-            self.update_weights(parallel)
+            self.update_weights(parallel, batch_size)
 
             print(
                 "Epoch loss: "

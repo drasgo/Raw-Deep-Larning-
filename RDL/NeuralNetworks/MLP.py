@@ -76,8 +76,15 @@ class MLP(BaseNeuralNetwork):
                            curr_layer["name"] + ": " + str(sensitivity), self.verbose)
                 else:
                     # S(i) = f'(x) * W(i+1)T * S(i+1)
-                    prev_layer = self.structure[curr_layer["output_layer"]]
-                    sensitivity = function_derivative * numpy.transpose(prev_layer["weight"]) * prev_layer["sensitivity"]
+                    diag_matrix = numpy.diagflat(function_derivative)
+                    logger("Computing sensitivity for layer " + curr_layer["name"] +
+                           "\n -function derivative: " + str(function_derivative) +
+                           "\n -diagonal of function derivative: " + str(diag_matrix) +
+                           "\n -prev layer (" + prev_layer["name"] + ") weight matrix: " + str(prev_layer["weight"]) +
+                           "\n -prev layer transposed weight matrix: " + str(numpy.transpose(prev_layer["weight"])) +
+                           "\n -prev layer sensitivity: " + str(prev_layer["sensitivity"]), self.verbose)
+
+                    sensitivity = diag_matrix * numpy.transpose(prev_layer["weight"]) * prev_layer["sensitivity"]
                     logger("Computed sensitivity (function derivative * weight matrix transposed * loss derivative) "
                            "for layer " + curr_layer["name"] + ": " + str(sensitivity), self.verbose)
 
