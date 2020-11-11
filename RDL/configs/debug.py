@@ -18,6 +18,6 @@ def logger(message, verbose: Verbosity = Verbosity.RELEASE):
         if isinstance(message, str) or isinstance(message, int):
             print("\n________________")
             print(message)
-            input()
+            # input()
         else:
             pprint.pprint(message)

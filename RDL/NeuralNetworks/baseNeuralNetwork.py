@@ -451,18 +451,37 @@ class BaseNeuralNetwork:
 
     def check_input_target_size(
             self,
-            data: numpy.ndarray,
-            number: int,
-    ) -> numpy.ndarray:
-        if number != 0 :
-            data = numpy.reshape(data, (number, int(data.size / number), 1))
-        return data
+            input_data: numpy.ndarray,
+            target_data: numpy.ndarray,
+            number_pairs: int,
+            input_size: int
+    ) -> Tuple[numpy.ndarray, numpy.ndarray]:
+        if input_size == 0 and number_pairs == 0:
+            logger("Error: at least one between input_size and number_pairs has to be given", Verbosity.DEBUG)
+            exit()
+
+        if input_size != 0:
+            if input_size != self.input_layers[0]["nodes"]:
+                logger("Error: input layer size is different than given input data size!", Verbosity.DEBUG)
+                exit()
+            number_pairs = int(input_data.size / input_size)
+            target_size = int(target_data.size / number_pairs)
+        else:
+            input_size = int(input_data.size / number_pairs)
+            target_size = int(target_data.size / number_pairs)
+
+        input_data = numpy.reshape(input_data, (number_pairs, input_size, 1))
+        target_data = numpy.reshape(target_data, (number_pairs, target_size, 1))
+        logger("Input data shape: " + str(input_data.shape) +
+               "\nTarget data shape: " + str(target_data.shape), self.verbose)
+        return input_data, target_data
 
     def train(
             self,
             input_data: numpy.ndarray,
             target_data: numpy.ndarray,
-            train_pairs: int,
+            input_size: int=0,
+            number_pairs: int=0,
             validation_input: numpy.ndarray = numpy.array([]),
             validation_target: numpy.ndarray = numpy.array([]),
             epochs: int = 1,
@@ -471,7 +490,8 @@ class BaseNeuralNetwork:
     ):
         """
 
-        :param train_pairs: int
+        :param number_pairs:
+        :param input_size: int
         :param input_data: numpy.ndarray:
         :param target_data: numpy.ndarray:
         :param validation_input: numpy.ndarray:  (Default value = numpy.array([]))
@@ -486,12 +506,7 @@ class BaseNeuralNetwork:
                "\n -batch size: " + str(batch_size) +
                "\n -parallel: " + str(parallel), self.verbose)
 
-        if train_pairs == 0:
-            logger("Error: number of pairs must be higher than 0!")
-            exit()
-
-        input_data = self.check_input_target_size(input_data, train_pairs)
-        target_data = self.check_input_target_size(target_data, train_pairs)
+        input_data, target_data = self.check_input_target_size(input_data, target_data, number_pairs, input_size)
 
         (
             input_data,
@@ -504,7 +519,7 @@ class BaseNeuralNetwork:
         # input_data, target_data = self.check_input_target_size(input_data, target_data)
 
         logger("Training:", Verbosity.DEBUG)
-        for epoch in range(epochs):
+        for epoch in range(1, epochs + 1):
             logger("Epoch " + str(epoch), Verbosity.DEBUG)
             batch = 0
             total_correct = 0
@@ -536,7 +551,7 @@ class BaseNeuralNetwork:
                     total_correct += 1
 
                 logger("Step loss: " + str(step_loss) +
-                       "\nInput shape: " + str(input_data.shape), Verbosity.DEBUG)
+                       "\nInput shape: " + str(input_data.shape), self.verbose)
                 if ((total_value / int(input_data.shape[0])) * 100) % 10 == 0:
                     logger(
                         "Epoch " + str(epoch) + ": " +
@@ -552,9 +567,9 @@ class BaseNeuralNetwork:
 
             logger(
                 "Epoch loss: "
-                + str(round(total_loss / total_value, 3))
+                + str(total_loss / total_value)
                 + ", epoch accuracy: "
-                + str(round(total_correct / total_value, 3)), Verbosity.DEBUG
+                + str(total_correct / total_value), Verbosity.DEBUG
             )
 
             if self.validation(validation_input, validation_target) is True:
@@ -588,20 +603,17 @@ class BaseNeuralNetwork:
         else:
             return False
 
-    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray, test_pairs: int):
+    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray, input_size: int=0, number_pairs: int=0):
         """
 
         :param test_input: numpy.ndarray:
         :param test_target: numpy.ndarray:
+        :param input_size: int:
 
         """
         # test_input, target_data = self.check_input_target_size(test_input, test_target)
         logger("STARTING TESTING", self.verbose)
-        if test_pairs == 0:
-            logger("Error: number of pairs must be higher than 0!")
-            exit()
-        test_input = self.check_input_target_size(test_input, test_pairs)
-        test_target = self.check_input_target_size(test_target, test_pairs)
+        test_input, test_target = self.check_input_target_size(test_input, test_target, number_pairs, input_size)
         loss = 0
         total_correct = 0
         total_value = 0
@@ -618,7 +630,7 @@ class BaseNeuralNetwork:
 
         print(
             "Testing loss: "
-            + str(round(loss / total_value, 3))
+            + str(loss / total_value)
             + ", testing accuracy: "
-            + str(round(total_correct / total_value, 3))
+            + str(total_correct / total_value)
         )
