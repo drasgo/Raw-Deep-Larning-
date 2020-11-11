@@ -6,7 +6,7 @@ import numpy
 class _Ops:
     """ """
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -28,7 +28,7 @@ class _Linear(_Ops):
     """ """
     name = "Linear"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -50,7 +50,7 @@ class _Relu(_Ops):
     """ """
     name = "Relu"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -81,7 +81,7 @@ class _LeakyRelu(_Ops):
     """ """
     name = "Leaky Relu"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -112,7 +112,7 @@ class _Sigmoid(_Ops):
     """ """
     name = "Sigmoid"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -137,7 +137,7 @@ class _Tanh(_Ops):
     """ """
     name = "Tanh"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -169,7 +169,7 @@ class _Swish(_Ops):
     """
     name = "Swish"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 
@@ -189,14 +189,14 @@ class _Swish(_Ops):
         :param input_data: numpy.array: 
 
         """
-        return input_data + (_Sigmoid.forward(input_data) * (numpy.ones(input_data.shape) - input_data))
+        return input_data + (_Sigmoid.compute(input_data) * (numpy.ones(input_data.shape) - input_data))
 
 
 class _Softmax(_Ops):
     """ """
     name = "Softmax"
     @staticmethod
-    def forward(input_data: numpy.array) -> numpy.array:
+    def compute(input_data: numpy.array) -> numpy.array:
         """
 
         :param input_data: numpy.array: 

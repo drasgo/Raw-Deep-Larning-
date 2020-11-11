@@ -35,7 +35,7 @@ class MLP(BaseNeuralNetwork):
                        "\nLayer biases: " + str(curr_layer["bias"]) +
                        "\nLayer activation function: " + str(curr_layer["activation"].value.name) +
                        "\n(Curr matrix * Prev data) + Curr biases = " + str(output_data), self.verbose)
-                output_data = curr_layer["activation"].value.forward(output_data)
+                output_data = curr_layer["activation"].value.compute(output_data)
                 curr_layer["data"] = output_data
                 prev_layer = curr_layer
                 logger(curr_layer["activation"].value.name + "(Curr data) = " + str(output_data), self.verbose)
@@ -57,7 +57,7 @@ class MLP(BaseNeuralNetwork):
 
         """
         logger("STARTING BACKWARD PASS", self.verbose)
-        loss = self.loss_function.value.forward(output_data, target_data)
+        loss = self.loss_function.value.compute(output_data, target_data)
         loss_derivative = self.loss_function.value.derivative(output_data, target_data)
         logger("Loss: " + str(loss) + "\nLoss derivative: " + str(loss_derivative), self.verbose)
 
@@ -71,7 +71,8 @@ class MLP(BaseNeuralNetwork):
                 function_derivative = curr_layer["activation"].value.derivative(curr_layer["data"])
                 if curr_layer["type"] == "output":
                     # S(output) = f'(x) * loss'
-                    sensitivity = function_derivative * loss_derivative
+                    sensitivity = loss_derivative
+                    # sensitivity = function_derivative * loss_derivative
                     logger("Computed sensitivity (function derivative * loss derivative) for layer " +
                            curr_layer["name"] + ": " + str(sensitivity), self.verbose)
                 else:
@@ -102,6 +103,7 @@ class MLP(BaseNeuralNetwork):
                 curr_layer["weight_update"] += updates
                 prev_layer = curr_layer
                 curr_layer = self.structure[prev_layer["input_layer"]]
+                input()
 
         logger("FINISHED BACKWARD PASS", self.verbose)
         return loss

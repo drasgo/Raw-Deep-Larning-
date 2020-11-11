@@ -18,7 +18,7 @@ class BaseNeuralNetwork:
         self.output_layers = []
         self.learning_rate = 0.1
         self.normalization = True
-        self.standardization = True
+        self.standardization = False
         self.parallel_structure = multiprocessing.Manager().dict()
         self.validation_threshold = 0.001
         self.verbose = verbose
@@ -44,10 +44,12 @@ class BaseNeuralNetwork:
             input_layer: str,
             nodes: int,
             activation_function: ActivationFunctions,
-            weight_initialization: WeightInitializations=WeightInitializations.ONES
+            weight_initialization: WeightInitializations=WeightInitializations.ONES,
+            bias_initialization: WeightInitializations = WeightInitializations.ZERO
     ):
         """
 
+        :param bias_initialization:
         :param layer_name: str:
         :param input_layer: str:
         :param nodes: int:
@@ -61,7 +63,8 @@ class BaseNeuralNetwork:
             "nodes": nodes,
             "activation": activation_function,
             "input_layer": input_layer,
-            "weight_initialization": weight_initialization
+            "weight_initialization": weight_initialization,
+            "bias_initialization": bias_initialization
         }
         logger("Added hidden layer: ", self.verbose)
         logger(self.structure[layer_name], self.verbose)
@@ -72,11 +75,13 @@ class BaseNeuralNetwork:
             input_layer: str,
             nodes: int,
             activation_function: ActivationFunctions = ActivationFunctions.LINEAR,
-            weight_initialization: WeightInitializations = WeightInitializations.ONES
+            weight_initialization: WeightInitializations = WeightInitializations.ONES,
+            bias_initialization: WeightInitializations = WeightInitializations.ZERO
     ):
         """
 
-        :param layer_name: str: 
+        :param bias_initialization:
+        :param layer_name: str:
         :param input_layer: str: 
         :param nodes: int: 
         :param activation_function: ActivationFunctions:  (Default value = ActivationFunctions.LINEAR)
@@ -90,7 +95,8 @@ class BaseNeuralNetwork:
             "activation": activation_function,
             "nodes": nodes,
             "input_layer": input_layer,
-            "weight_initialization": weight_initialization
+            "weight_initialization": weight_initialization,
+            "bias_initialization": bias_initialization
         }
         logger("Added output layer: ", self.verbose)
         logger(self.structure[layer_name], self.verbose)
@@ -164,6 +170,11 @@ class BaseNeuralNetwork:
             exit()
 
         for layer in self.structure:
+            if self.structure[layer]["type"] == "output" and \
+                self.structure[layer]["activation"] != ActivationFunctions.SOFTMAX and\
+                self.loss_function == LossFunctions.CROSS_ENTROPY:
+                print("Error: cross-entropy supported only with softmax.")
+                exit()
             if (
                     self.structure[layer]["type"] != "input"
                     and self.structure[layer]["input_layer"] not in self.structure
@@ -222,7 +233,8 @@ class BaseNeuralNetwork:
                     )
                 )
                 weights_update = numpy.zeros(weights.shape)
-                biases = numpy.ones((self.structure[layer]["nodes"], 1))
+                # TODO: add bias initialization
+                biases = numpy.zeros((self.structure[layer]["nodes"], 1))
 
             new_structure[layer] = {
                 "name": layer,
@@ -271,15 +283,8 @@ class BaseNeuralNetwork:
         :param input_data: numpy.ndarray:
 
         """
-        minimum = numpy.min(input_data)
-        maximum = numpy.max(input_data)
-
-        for rows in range(input_data.shape[0]):
-            for columns in range(input_data.shape[1]):
-                input_data[rows][columns] = (input_data[rows][columns] - minimum) / (
-                        maximum - minimum
-                )
-        return input_data
+        return (input_data - numpy.min(input_data)) / (numpy.max(input_data) - numpy
+                                                       .min(input_data))
 
     @staticmethod
     def standardize_data(input_data: numpy.ndarray) -> numpy.ndarray:
@@ -288,12 +293,7 @@ class BaseNeuralNetwork:
         :param input_data: numpy.ndarray:
 
         """
-        mean = numpy.mean(input_data)
-        std = numpy.std(input_data)
-        for rows in range(input_data.shape[0]):
-            for columns in range(input_data.shape[1]):
-                input_data[rows][columns] = (input_data[rows][columns] - mean) / std
-        return input_data
+        return (input_data - numpy.mean(input_data)) / numpy.mean(input_data)
 
     def forward(self, input_data: numpy.ndarray) -> numpy.ndarray:
         """
@@ -357,6 +357,7 @@ class BaseNeuralNetwork:
                 )
                 logger("\nAfter: " + str(self.parallel_structure[layer]["weight"]), self.verbose)
             self.structure = self.parallel_structure.copy()
+        logger("Weights updated!", Verbosity.DEBUG)
 
     def parallel_train(
             self,
@@ -453,22 +454,10 @@ class BaseNeuralNetwork:
             self,
             input_data: numpy.ndarray,
             target_data: numpy.ndarray,
-            number_pairs: int,
-            input_size: int
     ) -> Tuple[numpy.ndarray, numpy.ndarray]:
-        if input_size == 0 and number_pairs == 0:
-            logger("Error: at least one between input_size and number_pairs has to be given", Verbosity.DEBUG)
-            exit()
-
-        if input_size != 0:
-            if input_size != self.input_layers[0]["nodes"]:
-                logger("Error: input layer size is different than given input data size!", Verbosity.DEBUG)
-                exit()
-            number_pairs = int(input_data.size / input_size)
-            target_size = int(target_data.size / number_pairs)
-        else:
-            input_size = int(input_data.size / number_pairs)
-            target_size = int(target_data.size / number_pairs)
+        input_size = self.input_layers[0]["nodes"]
+        number_pairs = int(input_data.size / input_size)
+        target_size = int(target_data.size / number_pairs)
 
         input_data = numpy.reshape(input_data, (number_pairs, input_size, 1))
         target_data = numpy.reshape(target_data, (number_pairs, target_size, 1))
@@ -480,8 +469,6 @@ class BaseNeuralNetwork:
             self,
             input_data: numpy.ndarray,
             target_data: numpy.ndarray,
-            input_size: int=0,
-            number_pairs: int=0,
             validation_input: numpy.ndarray = numpy.array([]),
             validation_target: numpy.ndarray = numpy.array([]),
             epochs: int = 1,
@@ -489,9 +476,6 @@ class BaseNeuralNetwork:
             parallel: bool = False,
     ):
         """
-
-        :param number_pairs:
-        :param input_size: int
         :param input_data: numpy.ndarray:
         :param target_data: numpy.ndarray:
         :param validation_input: numpy.ndarray:  (Default value = numpy.array([]))
@@ -506,7 +490,7 @@ class BaseNeuralNetwork:
                "\n -batch size: " + str(batch_size) +
                "\n -parallel: " + str(parallel), self.verbose)
 
-        input_data, target_data = self.check_input_target_size(input_data, target_data, number_pairs, input_size)
+        input_data, target_data = self.check_input_target_size(input_data, target_data)
 
         (
             input_data,
@@ -526,7 +510,7 @@ class BaseNeuralNetwork:
             total_value = 0
             total_loss = 0.0
             for input_element, target_element in zip(input_data, target_data):
-                logger("Input: " + str(input_element) + "\nTarget: " + str(target_element), self.verbose)
+                # logger("Input: " + str(input_element) + "\nTarget: " + str(target_element), self.verbose)
                 # input_row, input_column = input_element.shape
                 # target_row, target_column = target_data.shape
                 # if input_row == 1:
@@ -535,23 +519,23 @@ class BaseNeuralNetwork:
                 #     target_data = target_data.reshape(target_row, target_column)
 
                 output_element = self.forward(input_element)
-                logger("Forward pass: \n -Input data: " + str(input_element) +
-                       "\n -Output data: " + str(output_element), self.verbose)
+                # logger("Forward pass: \n -Input data: " + str(input_element) +
+                #        "\n -Output data: " + str(output_element), self.verbose)
 
-                step_loss = self.backward(output_element, target_element)
-                total_loss += step_loss
-                batch += 1
-                total_value += 1
-
-                if output_element == target_element or (
+                logger("Output: " + str(output_element) + "\nTarget: " + str(target_element), self.verbose)
+                if (output_element == target_element).all() or (
                         self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX
-                        and numpy.argmax(output_element, axis=1)
-                        == numpy.argmax(target_element, axis=1)
+                        and numpy.amax(output_element)
+                        == numpy.amax(target_element)
                 ):
                     total_correct += 1
+                step_loss = self.backward(output_element, target_element)
+                batch += 1
+                total_value += 1
+                total_loss += step_loss
 
-                logger("Step loss: " + str(step_loss) +
-                       "\nInput shape: " + str(input_data.shape), self.verbose)
+                logger("Step n°. " + str(batch) + "\nStep loss: " + str(step_loss), Verbosity.DEBUG)
+                # "\nInput shape: " + str(input_data.shape), self.verbose)
                 if ((total_value / int(input_data.shape[0])) * 100) % 10 == 0:
                     logger(
                         "Epoch " + str(epoch) + ": " +
@@ -562,14 +546,14 @@ class BaseNeuralNetwork:
                     batch = 0
                     logger("updating weights", self.verbose)
                     self.update_weights(parallel, batch_size)
-
+                input()
             self.update_weights(parallel, batch_size)
 
             logger(
                 "Epoch loss: "
                 + str(total_loss / total_value)
                 + ", epoch accuracy: "
-                + str(total_correct / total_value), Verbosity.DEBUG
+                + str((total_correct / total_value) * 100), Verbosity.DEBUG
             )
 
             if self.validation(validation_input, validation_target) is True:
@@ -596,24 +580,23 @@ class BaseNeuralNetwork:
         loss = 0
         for data, target in zip(validation_input, validation_target):
             output_element = self.forward(data)
-            loss += self.loss_function.value.forward(output_element, target)
+            loss += self.loss_function.value.compute(output_element, target)
         logger("Loss on validation data: " + str(loss), self.verbose)
         if loss < self.validation_threshold:
             return True
         else:
             return False
 
-    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray, input_size: int=0, number_pairs: int=0):
+    def test(self, test_input: numpy.ndarray, test_target: numpy.ndarray):
         """
 
         :param test_input: numpy.ndarray:
         :param test_target: numpy.ndarray:
-        :param input_size: int:
 
         """
         # test_input, target_data = self.check_input_target_size(test_input, test_target)
         logger("STARTING TESTING", self.verbose)
-        test_input, test_target = self.check_input_target_size(test_input, test_target, number_pairs, input_size)
+        test_input, test_target = self.check_input_target_size(test_input, test_target)
         loss = 0
         total_correct = 0
         total_value = 0
@@ -622,9 +605,9 @@ class BaseNeuralNetwork:
             output_element = self.forward(data)
             loss += self.loss_function.value.forward(output_element, target)
             total_value += 1
-            if output_element == target or (
+            if (output_element == target).all() or (
                     self.output_layers[0]["activation"] == ActivationFunctions.SOFTMAX
-                    and numpy.argmax(output_element, axis=1) == numpy.argmax(target, axis=1)
+                    and numpy.amax(output_element) == numpy.amax(target)
             ):
                 total_correct += 1
 
@@ -632,5 +615,5 @@ class BaseNeuralNetwork:
             "Testing loss: "
             + str(loss / total_value)
             + ", testing accuracy: "
-            + str(total_correct / total_value)
+            + str((total_correct / total_value) * 100)
         )

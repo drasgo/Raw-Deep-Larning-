@@ -1,12 +1,11 @@
 from enum import Enum
-from math import log
 import numpy
 
 
 class _MSE:
     """ """
     @staticmethod
-    def forward(output, target):
+    def compute(output, target):
         """
 
         :param output: 
@@ -30,15 +29,16 @@ class _MSE:
 class _CrossEntropy:
     """ """
     @staticmethod
-    def forward(output, target):
+    def compute(output, target):
         """
 
         :param output: 
         :param target: 
 
         """
-        loss = target * log(numpy.transpose(output))
-        return -numpy.sum(loss)
+        output[output==0] = 0.00000001
+        output[output==1] = 0.99999999
+        return -numpy.sum(target * numpy.log(output) + (1-target)*numpy.log(1-output))
 
     @staticmethod
     def derivative(output, target):
@@ -48,7 +48,13 @@ class _CrossEntropy:
         :param target: 
 
         """
-        return numpy.sum(output - target)
+        # output[output == 0] = 0.00000001
+        # output[output == 1] = 0.99999999
+        # der_loss = ((-target)/output) + ((1 - target)/(1 - output))
+        # print(der_loss)
+        # input()
+        return target - output
+
 
 
 class LossFunctions(Enum):
